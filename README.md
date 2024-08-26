@@ -51,6 +51,7 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 绘 一只可爱的小猫 -m flux ---16:9
 ```
 
+
 ### 可用模型
 
 - flux
@@ -80,6 +81,8 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 ```
 绘 将这张图片转换成动漫风格 https://example.com/image.jpg -m sdxl ---1:1
 ```
+
+<img width="1070" alt="image" src="https://github.com/user-attachments/assets/8799bb57-25ab-4182-ba9e-0459d584b8fa">
 
 ## 注意事项
 
