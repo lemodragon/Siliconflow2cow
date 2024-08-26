@@ -18,7 +18,7 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 2. 将 `siliconflow2cow` 目录复制到 chatgpt-on-wechat 的 `plugins` 目录中。
 3. 安装所需的依赖：
    ```
-   pip install requests pathvalidate Pillow
+    pip install -r plugins/siliconflow2cow/requirements.txt
    ```
 4. 在 `config.json` 文件中配置您的 API 令牌和其他设置。
 
