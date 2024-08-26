@@ -50,6 +50,7 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 ```
 绘 一只可爱的小猫 -m flux ---16:9
 ```
+<img width="1061" alt="image" src="https://github.com/user-attachments/assets/3285128e-1ad2-4f27-84ab-e426e11ccfb6">
 
 
 ### 可用模型
@@ -98,11 +99,7 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 2. 确保您有稳定的网络连接。
 3. 检查日志文件以获取详细的错误信息。
 
-## 贡献
 
 欢迎提交 issues 和 pull requests 来改进这个插件。
 
-## 许可证
-
-[在此处添加许可证信息]
 
