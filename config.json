@@ -1,0 +1,5 @@
+{
+  "auth_token": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "drawing_prefixes": ["绘", "draw"],
+  "image_output_dir": "./plugins/siliconflow2cow/images"
+}
