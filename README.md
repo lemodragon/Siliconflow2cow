@@ -92,7 +92,7 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 3. 插件会自动优化您的提示词以产生更好的结果。
 
 
-##贡献榜
+## 贡献榜
 感谢L站“逆向达人”提供思路
 [Workers部署链接](https://linux.do/t/topic/185085)
 
