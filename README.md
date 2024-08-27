@@ -136,7 +136,9 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 1. 确保您有足够的 API 使用额度。
 2. 请确保您有足够的存储空间来保存生成的图片。
 3. 插件会自动优化您的提示词以产生更好的结果。
-4. 请遵守API提供商的使用条款和内容政策。
+4. 请遵守API提供商的使用条款和内容政策。(*出现451ERROR为检测到违规提示词，sd2较易触发*)
+<img width="1072" alt="image" src="https://github.com/user-attachments/assets/e0c85d94-5332-41d9-a337-2f015bbfa163">
+
 5. 定期清理功能会自动删除指定天数前的图片，请注意备份重要图片。
 6. 使用 `绘clean_all` 命令时要小心，它会删除所有已生成的图片。
 ![pintu-fulicat com-1724779353863](https://github.com/user-attachments/assets/01e06fef-3f0c-4d9c-95d0-06f1f7e843e0)
