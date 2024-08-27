@@ -75,6 +75,80 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 
 引导尺度控制生成图像与提示词的匹配程度。较低的值可能导致图像不够清晰，而较高的值可能导致过度饱和。
 
+建议值：
+- 标准范围：5.0-8.0
+- 对于色彩过度饱和的情况，尝试降低到 3.0-5.0
+
+### 3. 优化提示词
+
+- 添加特定的风格描述，如 "柔和的色彩"、"自然的光线"
+- 使用负面提示词来避免不想要的效果，如 "过度饱和, 过度对比"
+
+### 4. 模型特定配置
+
+根据不同模型调整参数：
+
+#### FLUX 模型
+```python
+json_body = {
+    "num_inference_steps": 30,
+    "guidance_scale": 6.0,
+    "prompt": prompt,
+    "width": width,
+    "height": height
+}
+```
+
+#### Stable Diffusion (SD) 模型
+```python
+json_body = {
+    "num_inference_steps": 40,
+    "guidance_scale": 5.5,
+    "prompt": prompt,
+    "width": width,
+    "height": height
+}
+```
+
+#### SDXL Turbo 和 SDXL Lightning
+```python
+json_body = {
+    "num_inference_steps": 6,  # 可以尝试 4-8
+    "guidance_scale": 1.5,     # 可以尝试 1.0-2.0
+    "prompt": prompt,
+    "width": width,
+    "height": height
+}
+```
+
+### 如何应用这些调整
+
+1. 打开 `siliconflow2cow.py` 文件。
+2. 找到 `generate_image_by_text` 和 `generate_image_by_img` 方法。
+3. 根据您使用的模型，修改相应的 `json_body` 配置。
+
+例如，对于 FLUX 模型：
+
+```python
+if model_key == "flux":
+    json_body.update({
+        "num_inference_steps": 30,
+        "guidance_scale": 6.0
+    })
+```
+
+4. 保存文件并重新加载插件。
+
+通过调整这些参数，您应该能够显著改善生成图像的质量，减少色彩过度饱和的问题。如果问题仍然存在，可以逐步微调这些值，直到达到满意的结果。
+
+## 高级用户提示
+
+- 尝试不同的模型：有时切换到不同的模型可能会产生更好的结果。
+- 实验性调整：对于经验丰富的用户，可以尝试在提示词中直接指定参数，例如：
+  ```
+  绘 自然风景 -m sdxl --steps 40 --guidance 5.5 ---16:9
+  ```
+  
 ## 使用方法
 
 使用以下格式发送消息来生成图像：
