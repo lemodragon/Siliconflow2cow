@@ -125,6 +125,9 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 1. 确保您有足够的 API 使用额度。
 2. 生成的图像将保存在配置的输出目录中。
 3. 插件会自动优化您的提示词以产生更好的结果。
+4. 生成的图片在对应插件目录下的images文件中，记得定时清理。
+<img width="420" alt="屏幕截图 2024-08-26 180221" src="https://github.com/user-attachments/assets/503ad7b5-b857-4803-bb3e-57500bb66032">
+
 
 ## 故障排除
 
