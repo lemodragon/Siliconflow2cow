@@ -1,5 +1,6 @@
 {
-  "auth_token": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "auth_token": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
   "drawing_prefixes": ["绘", "draw"],
-  "image_output_dir": "./plugins/siliconflow2cow/images"
+  "image_output_dir": "./plugins/siliconflow2cow/images",
+  "clean_interval": 3
 }

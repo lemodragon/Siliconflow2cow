@@ -4,10 +4,13 @@ import json
 import time
 import requests
 import base64
+import schedule
 from io import BytesIO
 from typing import List, Tuple
 from pathvalidate import sanitize_filename
 from PIL import Image
+from datetime import datetime, timedelta
+import threading
 
 import plugins
 from bridge.context import ContextType
@@ -25,7 +28,7 @@ ENHANCER_PROMPT = """As a Stable Diffusion Prompt expert, you will create prompt
     desire_priority=90,
     hidden=False,
     desc="A plugin for generating images using various models.",
-    version="2.4.3",
+    version="2.5.5",
     author="Assistant",
 )
 class Siliconflow2cow(Plugin):
@@ -42,11 +45,17 @@ class Siliconflow2cow(Plugin):
 
             self.drawing_prefixes = conf.get("drawing_prefixes", ["绘", "draw"])
             self.image_output_dir = conf.get("image_output_dir", "./plugins/siliconflow2cow/images")
+            self.clean_interval = conf.get("clean_interval", 3)  # 默认3天清理一次
 
             if not os.path.exists(self.image_output_dir):
                 os.makedirs(self.image_output_dir)
 
             self.handlers[Event.ON_HANDLE_CONTEXT] = self.on_handle_context
+            
+            # 启动定时清理任务
+            self.schedule_thread = threading.Thread(target=self.run_schedule, daemon=True)
+            self.schedule_thread.start()
+            
             logger.info("[Siliconflow2cow] 初始化成功")
         except Exception as e:
             logger.error(f"[Siliconflow2cow] 初始化失败，错误：{e}")
@@ -69,33 +78,34 @@ class Siliconflow2cow(Plugin):
                     content = content[len(prefix):].strip()
                     break
 
-            model_key, image_size, clean_prompt = self.parse_user_input(content)
-            logger.debug(f"[Siliconflow2cow] 解析后的参数: 模型={model_key}, 尺寸={image_size}, 提示词={clean_prompt}")
-
-            # 在增强提示词之前先提取图片URL
-            original_image_url = self.extract_image_url(clean_prompt)
-            logger.debug(f"[Siliconflow2cow] 原始提示词中提取的图片URL: {original_image_url}")
-
-            enhanced_prompt = self.enhance_prompt(clean_prompt)
-            logger.debug(f"[Siliconflow2cow] 增强后的提示词: {enhanced_prompt}")
-
-            image_url = self.generate_image(enhanced_prompt, original_image_url, model_key, image_size)
-            logger.debug(f"[Siliconflow2cow] 生成的图片URL: {image_url}")
-
-            if image_url:
-                image_path = self.download_and_save_image(image_url)
-                logger.debug(f"[Siliconflow2cow] 图片已保存到: {image_path}")
-
-                with open(image_path, 'rb') as f:
-                    image_storage = BytesIO(f.read())
-                reply = Reply(ReplyType.IMAGE, image_storage)
-                e_context["reply"] = reply
-                e_context.action = EventAction.BREAK_PASS
+            if content.lower() == "clean_all":
+                reply = self.clean_all_images()
             else:
-                logger.error("[Siliconflow2cow] 生成图片失败")
-                reply = Reply(ReplyType.ERROR, "生成图片失败。")
-                e_context["reply"] = reply
-                e_context.action = EventAction.BREAK_PASS
+                model_key, image_size, clean_prompt = self.parse_user_input(content)
+                logger.debug(f"[Siliconflow2cow] 解析后的参数: 模型={model_key}, 尺寸={image_size}, 提示词={clean_prompt}")
+
+                original_image_url = self.extract_image_url(clean_prompt)
+                logger.debug(f"[Siliconflow2cow] 原始提示词中提取的图片URL: {original_image_url}")
+
+                enhanced_prompt = self.enhance_prompt(clean_prompt)
+                logger.debug(f"[Siliconflow2cow] 增强后的提示词: {enhanced_prompt}")
+
+                image_url = self.generate_image(enhanced_prompt, original_image_url, model_key, image_size)
+                logger.debug(f"[Siliconflow2cow] 生成的图片URL: {image_url}")
+
+                if image_url:
+                    image_path = self.download_and_save_image(image_url)
+                    logger.debug(f"[Siliconflow2cow] 图片已保存到: {image_path}")
+
+                    with open(image_path, 'rb') as f:
+                        image_storage = BytesIO(f.read())
+                    reply = Reply(ReplyType.IMAGE, image_storage)
+                else:
+                    logger.error("[Siliconflow2cow] 生成图片失败")
+                    reply = Reply(ReplyType.ERROR, "生成图片失败。")
+
+            e_context["reply"] = reply
+            e_context.action = EventAction.BREAK_PASS
         except Exception as e:
             logger.error(f"[Siliconflow2cow] 发生错误: {e}")
             reply = Reply(ReplyType.ERROR, f"发生错误: {str(e)}")
@@ -146,7 +156,6 @@ class Siliconflow2cow(Plugin):
         url = self.get_url_for_model(model_key)
         logger.debug(f"[Siliconflow2cow] 使用模型URL: {url}")
 
-        # 将image_size从字符串转换为宽度和高度
         width, height = map(int, image_size.split('x'))
 
         json_body = {
@@ -161,7 +170,6 @@ class Siliconflow2cow(Plugin):
             'Content-Type': 'application/json'
         }
 
-        # 根据不同模型调整参数
         if model_key == "flux":
             json_body.update({
                 "num_inference_steps": 30,
@@ -194,7 +202,6 @@ class Siliconflow2cow(Plugin):
                 "guidance_scale": 1.0
             })
         else:
-            # 默认参数
             json_body.update({
                 "num_inference_steps": 50,
                 "guidance_scale": 7.5
@@ -223,7 +230,6 @@ class Siliconflow2cow(Plugin):
 
         base64_image = self.convert_image_to_base64(image_url)
 
-        # 将image_size从字符串转换为宽度和高度
         width, height = map(int, image_size.split('x'))
 
         json_body = {
@@ -234,7 +240,6 @@ class Siliconflow2cow(Plugin):
             "batch_size": 1
         }
 
-        # 根据不同模型调整参数
         if model_key == "sdxl":
             json_body.update({
                 "num_inference_steps": 40,
@@ -257,7 +262,6 @@ class Siliconflow2cow(Plugin):
                 "style_strengh_radio": 20
             })
         else:
-            # 默认参数
             json_body.update({
                 "num_inference_steps": 50,
                 "guidance_scale": 7.5
@@ -269,7 +273,6 @@ class Siliconflow2cow(Plugin):
             'Content-Type': 'application/json'
         }
 
-        # 创建一个不包含base64图片数据的日志版本
         log_json_body = json_body.copy()
         log_json_body['image'] = '[BASE64_IMAGE_DATA]'
         logger.debug(f"[Siliconflow2cow] 发送图生图请求体: {log_json_body}")
@@ -311,7 +314,6 @@ class Siliconflow2cow(Plugin):
         return clean_prompt
 
     def extract_image_url(self, text: str) -> str:
-        # 更新正则表达式以匹配更多类型的图片URL，并处理可能的多个空格
         match = re.search(r'(https?://[^\s]+?\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico))(?:\s|$)', text, re.IGNORECASE)
         url = match.group(1) if match else None
         logger.debug(f"[Siliconflow2cow] 提取的图片URL: {url}")
@@ -376,18 +378,51 @@ class Siliconflow2cow(Plugin):
             logger.error(f"[Siliconflow2cow] 下载图片失败，状态码: {response.status_code}")
             raise Exception('下载图片失败')
 
-        # 使用PIL打开图片
         image = Image.open(BytesIO(response.content))
 
-        # 生成唯一文件名
         filename = f"{int(time.time())}.png"
         file_path = os.path.join(self.image_output_dir, filename)
 
-        # 保存图片
         image.save(file_path, format='PNG')
 
         logger.info(f"[Siliconflow2cow] 图片已保存到 {file_path}")
         return file_path
+
+    def clean_all_images(self):
+        """清理所有图片"""
+        logger.info("[Siliconflow2cow] 开始清理所有图片")
+        initial_count = len([name for name in os.listdir(self.image_output_dir) if os.path.isfile(os.path.join(self.image_output_dir, name))])
+        
+        for filename in os.listdir(self.image_output_dir):
+            file_path = os.path.join(self.image_output_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                logger.info(f"[Siliconflow2cow] 已删除图片: {file_path}")
+        
+        final_count = len([name for name in os.listdir(self.image_output_dir) if os.path.isfile(os.path.join(self.image_output_dir, name))])
+        
+        logger.info("[Siliconflow2cow] 清理所有图片完成")
+        return Reply(ReplyType.TEXT, f"清理完成：已删除 {initial_count - final_count} 张图片，当前目录下还有 {final_count} 张图片。")
+
+    def run_schedule(self):
+        """运行定时任务"""
+        schedule.every().day.at("00:00").do(self.clean_old_images)
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    def clean_old_images(self):
+        """清理指定天数前的图片"""
+        logger.info("[Siliconflow2cow] 开始清理旧图片")
+        now = datetime.now()
+        for filename in os.listdir(self.image_output_dir):
+            file_path = os.path.join(self.image_output_dir, filename)
+            if os.path.isfile(file_path):
+                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                if now - file_time > timedelta(days=self.clean_interval):
+                    os.remove(file_path)
+                    logger.info(f"[Siliconflow2cow] 已删除旧图片: {file_path}")
+        logger.info("[Siliconflow2cow] 清理旧图片完成")
 
     def get_help_text(self, **kwargs):
         help_text = "插件使用指南：\n"
@@ -395,9 +430,11 @@ class Siliconflow2cow(Plugin):
         help_text += "2. 在提示词后面添加 '-m' 来选择模型，例如：-m sdxl\n"
         help_text += "3. 使用 '---' 后跟比例来指定图片尺寸，例如：---16:9\n"
         help_text += "4. 如果要进行图生图，直接在提示词中包含图片URL\n"
+        help_text += f"5. 输入 '{self.drawing_prefixes[0]}clean_all' 来清理所有图片（警告：这将删除所有已生成的图片）\n"
         help_text += f"示例：{self.drawing_prefixes[0]} 一只可爱的小猫 -m flux ---16:9\n"
         help_text += "注意：您的提示词将会被AI自动优化以产生更好的结果。\n"
         help_text += "注意：各模型的参数已经过调整以提高图像质量。\n"
         help_text += f"可用的模型：flux, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
         help_text += f"可用的尺寸比例：{', '.join(self.RATIO_MAP.keys())}\n"
+        help_text += f"图片将每{self.clean_interval}天自动清理一次。\n"
         return help_text
