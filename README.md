@@ -40,8 +40,9 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 
 ## 译文模型切换（默认使用deepseek付费模型）
 <img width="692" alt="image" src="https://github.com/user-attachments/assets/318f14c6-1458-436c-90a9-8c98ff1a5784">
+
 可更改为下面免费模型（部分展示）
-``` 
+```
 Qwen/Qwen2-7B-Instruct (32K, 免费)
 Qwen/Qwen2-1.5B-Instruct (32K, 免费)
 Qwen/Qwen1.5-7B-Chat (32K, 免费)
