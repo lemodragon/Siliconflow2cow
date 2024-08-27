@@ -17,8 +17,7 @@ from plugins import *
 from config import conf
 
 CHAT_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-# 下面切换模型用于实现中文提示词润色和转译
-CHAT_MODEL = "deepseek-ai/DeepSeek-V2-Chat" 
+CHAT_MODEL = "deepseek-ai/DeepSeek-V2-Chat"
 ENHANCER_PROMPT = """As a Stable Diffusion Prompt expert, you will create prompts from keywords, often from databases like Danbooru. Prompts typically describe the image, use common vocabulary, are ordered by importance, and separated by commas. Avoid using "-" or ".", but spaces and natural language are acceptable. Avoid word repetition. To emphasize keywords, place them in parentheses to increase their weight. For example, "(flowers)" increases 'flowers' weight by 1.1x, while "(((flowers)))" increases it by 1.331x. Use "(flowers:1.5)" to increase 'flowers' weight by 1.5x. Only increase weights for important tags. Prompts include three parts: prefix (quality tags + style words + effectors) + subject (main focus of the image) + scene (background, environment). The prefix affects image quality. Tags like "masterpiece", "best quality" increase image detail. Style words like "illustration", "lensflare" define the image style. Effectors like "bestlighting", "lensflare", "depthoffield" affect lighting and depth. The subject is the main focus, like characters or scenes. Detailed subject description ensures rich, detailed images. Increase subject weight for clarity. For characters, describe facial, hair, body, clothing, pose features. The scene describes the environment. Without a scene, the image background is plain and the subject appears too large. Some subjects inherently include scenes (e.g., buildings, landscapes). Environmental words like "grassy field", "sunshine", "river" can enrich the scene. Your task is to design image generation prompts. Please follow these steps: 1. I will send you an image scene. You need to generate a detailed image description. 2. The image description must be in English, output as a Positive Prompt."""
 
 @plugins.register(
@@ -26,7 +25,7 @@ ENHANCER_PROMPT = """As a Stable Diffusion Prompt expert, you will create prompt
     desire_priority=90,
     hidden=False,
     desc="A plugin for generating images using various models.",
-    version="2.3",
+    version="2.4.3",
     author="Assistant",
 )
 class Siliconflow2cow(Plugin):
@@ -36,17 +35,17 @@ class Siliconflow2cow(Plugin):
             conf = super().load_config()
             if not conf:
                 raise Exception("配置未找到。")
-            
+
             self.auth_token = conf.get("auth_token")
             if not self.auth_token:
                 raise Exception("在配置中未找到认证令牌。")
-            
+
             self.drawing_prefixes = conf.get("drawing_prefixes", ["绘", "draw"])
             self.image_output_dir = conf.get("image_output_dir", "./plugins/siliconflow2cow/images")
-            
+
             if not os.path.exists(self.image_output_dir):
                 os.makedirs(self.image_output_dir)
-            
+
             self.handlers[Event.ON_HANDLE_CONTEXT] = self.on_handle_context
             logger.info("[Siliconflow2cow] 初始化成功")
         except Exception as e:
@@ -73,10 +72,14 @@ class Siliconflow2cow(Plugin):
             model_key, image_size, clean_prompt = self.parse_user_input(content)
             logger.debug(f"[Siliconflow2cow] 解析后的参数: 模型={model_key}, 尺寸={image_size}, 提示词={clean_prompt}")
 
+            # 在增强提示词之前先提取图片URL
+            original_image_url = self.extract_image_url(clean_prompt)
+            logger.debug(f"[Siliconflow2cow] 原始提示词中提取的图片URL: {original_image_url}")
+
             enhanced_prompt = self.enhance_prompt(clean_prompt)
             logger.debug(f"[Siliconflow2cow] 增强后的提示词: {enhanced_prompt}")
 
-            image_url = self.generate_image(enhanced_prompt, model_key, image_size)
+            image_url = self.generate_image(enhanced_prompt, original_image_url, model_key, image_size)
             logger.debug(f"[Siliconflow2cow] 生成的图片URL: {image_url}")
 
             if image_url:
@@ -131,34 +134,33 @@ class Siliconflow2cow(Plugin):
             logger.error(f"[Siliconflow2cow] 增强提示词失败: {e}")
             return prompt
 
-    def generate_image(self, prompt: str, model_key: str, image_size: str) -> str:
-        image_url = self.extract_image_url(prompt)
-        if image_url:
+    def generate_image(self, prompt: str, original_image_url: str, model_key: str, image_size: str) -> str:
+        if original_image_url:
             logger.debug(f"[Siliconflow2cow] 检测到图片URL，使用图生图模式")
-            return self.generate_image_by_img(prompt, image_url, model_key, image_size)
+            return self.generate_image_by_img(prompt, original_image_url, model_key, image_size)
         else:
-            logger.debug(f"[Siliconflow2cow] 使用文生图模式")
+            logger.debug(f"[Siliconflow2cow] 未检测到图片URL，使用文生图模式")
             return self.generate_image_by_text(prompt, model_key, image_size)
 
     def generate_image_by_text(self, prompt: str, model_key: str, image_size: str) -> str:
         url = self.get_url_for_model(model_key)
         logger.debug(f"[Siliconflow2cow] 使用模型URL: {url}")
-        
+
         # 将image_size从字符串转换为宽度和高度
         width, height = map(int, image_size.split('x'))
-        
+
         json_body = {
             "prompt": prompt,
             "width": width,
             "height": height
         }
-        
+
         headers = {
             'Authorization': f"Bearer {self.auth_token}",
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         }
-        
+
         # 根据不同模型调整参数
         if model_key == "flux":
             json_body.update({
@@ -177,13 +179,14 @@ class Siliconflow2cow(Plugin):
             })
         elif model_key == "sdt":
             json_body.update({
-                "num_inference_steps": 20,
-                "guidance_scale": 2.5
+                "num_inference_steps": 6,
+                "guidance_scale": 1.0,
+                "cfg_scale": 1.0
             })
         elif model_key == "sdxlt":
             json_body.update({
-                "num_inference_steps": 15,
-                "guidance_scale": 2.0
+                "num_inference_steps": 4,
+                "guidance_scale": 1.0
             })
         elif model_key == "sdxll":
             json_body.update({
@@ -198,26 +201,31 @@ class Siliconflow2cow(Plugin):
             })
 
         logger.debug(f"[Siliconflow2cow] 发送请求体: {json_body}")
-        response = requests.post(url, headers=headers, json=json_body)
-
-        if response.status_code != 200:
-            logger.error(f"[Siliconflow2cow] API请求失败，状态码: {response.status_code}")
-            raise Exception(f"意外的响应 {response.status_code}")
-
-        json_response = response.json()
-        logger.debug(f"[Siliconflow2cow] API响应: {json_response}")
-        return json_response['images'][0]['url']
+        try:
+            response = requests.post(url, headers=headers, json=json_body)
+            response.raise_for_status()
+            json_response = response.json()
+            logger.debug(f"[Siliconflow2cow] API响应: {json_response}")
+            return json_response['images'][0]['url']
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[Siliconflow2cow] API请求失败: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 400:
+                    error_message = e.response.json().get('error', {}).get('message', '未知错误')
+                    logger.error(f"[Siliconflow2cow] API错误信息: {error_message}")
+                logger.error(f"[Siliconflow2cow] API响应内容: {e.response.text}")
+            raise Exception(f"API请求失败: {str(e)}")
 
     def generate_image_by_img(self, prompt: str, image_url: str, model_key: str, image_size: str) -> str:
         url = self.get_img_url_for_model(model_key)
         logger.debug(f"[Siliconflow2cow] 使用图生图模型URL: {url}")
         img_prompt = self.remove_image_urls(prompt)
-        
+
         base64_image = self.convert_image_to_base64(image_url)
-        
+
         # 将image_size从字符串转换为宽度和高度
         width, height = map(int, image_size.split('x'))
-        
+
         json_body = {
             "prompt": img_prompt,
             "image": base64_image,
@@ -225,7 +233,7 @@ class Siliconflow2cow(Plugin):
             "height": height,
             "batch_size": 1
         }
-        
+
         # 根据不同模型调整参数
         if model_key == "sdxl":
             json_body.update({
@@ -261,16 +269,25 @@ class Siliconflow2cow(Plugin):
             'Content-Type': 'application/json'
         }
 
-        logger.debug(f"[Siliconflow2cow] 发送图生图请求体: {json_body}")
-        response = requests.post(url, headers=headers, json=json_body)
+        # 创建一个不包含base64图片数据的日志版本
+        log_json_body = json_body.copy()
+        log_json_body['image'] = '[BASE64_IMAGE_DATA]'
+        logger.debug(f"[Siliconflow2cow] 发送图生图请求体: {log_json_body}")
 
-        if response.status_code != 200:
-            logger.error(f"[Siliconflow2cow] API请求失败，状态码: {response.status_code}")
-            raise Exception(f"意外的响应 {response.status_code}")
-
-        json_response = response.json()
-        logger.debug(f"[Siliconflow2cow] API响应: {json_response}")
-        return json_response['images'][0]['url']
+        try:
+            response = requests.post(url, headers=headers, json=json_body)
+            response.raise_for_status()
+            json_response = response.json()
+            logger.debug(f"[Siliconflow2cow] API响应: {json_response}")
+            return json_response['images'][0]['url']
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[Siliconflow2cow] API请求失败: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 400:
+                    error_message = e.response.json().get('error', {}).get('message', '未知错误')
+                    logger.error(f"[Siliconflow2cow] API错误信息: {error_message}")
+                logger.error(f"[Siliconflow2cow] API响应内容: {e.response.text}")
+            raise Exception(f"API请求失败: {str(e)}")
 
     def extract_model_key(self, prompt: str) -> str:
         match = re.search(r'-m ?(\S+)', prompt)
@@ -294,23 +311,24 @@ class Siliconflow2cow(Plugin):
         return clean_prompt
 
     def extract_image_url(self, text: str) -> str:
-        match = re.search(r'(https?://[^\s]+?\.(?:png|jpe?g|gif|bmp|webp|svg))', text, re.IGNORECASE)
+        # 更新正则表达式以匹配更多类型的图片URL，并处理可能的多个空格
+        match = re.search(r'(https?://[^\s]+?\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico))(?:\s|$)', text, re.IGNORECASE)
         url = match.group(1) if match else None
         logger.debug(f"[Siliconflow2cow] 提取的图片URL: {url}")
         return url
 
     def convert_image_to_base64(self, image_url: str) -> str:
-        logger.debug(f"[Siliconflow2cow] 正在将图片转换为base64: {image_url}")
+        logger.debug(f"[Siliconflow2cow] 正在下载图片: {image_url}")
         response = requests.get(image_url)
         if response.status_code != 200:
             logger.error(f"[Siliconflow2cow] 下载图片失败，状态码: {response.status_code}")
             raise Exception('下载图片失败')
         base64_image = f"data:image/webp;base64,{base64.b64encode(response.content).decode('utf-8')}"
-        logger.debug("[Siliconflow2cow] 图片成功转换为base64")
+        logger.debug("[Siliconflow2cow] 图片已成功转换为base64")
         return base64_image
 
     def remove_image_urls(self, text: str) -> str:
-        cleaned_text = re.sub(r'https?://\S+\.(?:png|jpe?g|gif|bmp|webp|svg)', '', text, flags=re.IGNORECASE)
+        cleaned_text = re.sub(r'https?://\S+\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico)(?:\s|$)', '', text, flags=re.IGNORECASE)
         logger.debug(f"[Siliconflow2cow] 移除图片URL后的文本: {cleaned_text}")
         return cleaned_text
 
@@ -357,17 +375,17 @@ class Siliconflow2cow(Plugin):
         if response.status_code != 200:
             logger.error(f"[Siliconflow2cow] 下载图片失败，状态码: {response.status_code}")
             raise Exception('下载图片失败')
-        
+
         # 使用PIL打开图片
         image = Image.open(BytesIO(response.content))
-        
+
         # 生成唯一文件名
         filename = f"{int(time.time())}.png"
         file_path = os.path.join(self.image_output_dir, filename)
-        
+
         # 保存图片
         image.save(file_path, format='PNG')
-        
+
         logger.info(f"[Siliconflow2cow] 图片已保存到 {file_path}")
         return file_path
 
@@ -379,6 +397,7 @@ class Siliconflow2cow(Plugin):
         help_text += "4. 如果要进行图生图，直接在提示词中包含图片URL\n"
         help_text += f"示例：{self.drawing_prefixes[0]} 一只可爱的小猫 -m flux ---16:9\n"
         help_text += "注意：您的提示词将会被AI自动优化以产生更好的结果。\n"
+        help_text += "注意：各模型的参数已经过调整以提高图像质量。\n"
         help_text += f"可用的模型：flux, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
         help_text += f"可用的尺寸比例：{', '.join(self.RATIO_MAP.keys())}\n"
         return help_text
