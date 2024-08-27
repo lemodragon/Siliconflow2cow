@@ -6,11 +6,12 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 ## 主要特性
 
-- 支持多种图像生成模型
-- 文本到图像和图像到图像的转换功能
-- 可自定义图像尺寸和宽高比
-- AI 增强的提示词优化
-- 直观的命令语法
+- 支持多种图像生成模型（flux, sd3, sdxl, sd2, sdt, sdxlt, sdxll）
+- 可自定义图像尺寸和比例
+- 支持文生图和图生图功能
+- 自动优化用户输入的提示词
+- 定期自动清理旧图片
+- 支持手动清理所有生成的图片
 
 ## 安装步骤
 
@@ -24,19 +25,21 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 ## 配置说明
 
-在 `config.json` 文件中设置以下参数：
+在 `config.json` 文件中添加以下配置：
 
 ```json
 {
-  "auth_token": "您的认证令牌",
+  "auth_token": "您的API认证令牌",
   "drawing_prefixes": ["绘", "draw"],
-  "image_output_dir": "./plugins/siliconflow2cow/images"
+  "image_output_dir": "./plugins/siliconflow2cow/images",
+  "clean_interval": 3
 }
 ```
 
-- `auth_token`：您的 Siliconflow API 认证令牌
-- `drawing_prefixes`：触发绘图命令的前缀
-- `image_output_dir`：生成图像的保存目录
+- `auth_token`: 您的API认证令牌
+- `drawing_prefixes`: 触发绘图的命令前缀
+- `image_output_dir`: 生成图片的保存路径
+- `clean_interval`: 自动清理图片的间隔天数
 
 ## 翻译模型选择
 
@@ -105,7 +108,15 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 
 ### 可用宽高比
 
-1:1, 1:2, 2:1, 3:2, 2:3, 4:3, 3:4, 16:9, 9:16
+- 1:1 (1024x1024)
+- 1:2 (1024x2048)
+- 2:1 (2048x1024)
+- 3:2 (1536x1024)
+- 2:3 (1024x1536)
+- 4:3 (1536x1152)
+- 3:4 (1152x1536)
+- 16:9 (2048x1152)
+- 9:16 (1152x2048)
 
 ### 图像到图像转换
 
@@ -123,11 +134,12 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 ## 重要说明
 
 1. 确保您有足够的 API 使用额度。
-2. 生成的图像将保存在配置的输出目录中。
+2. 请确保您有足够的存储空间来保存生成的图片。
 3. 插件会自动优化您的提示词以产生更好的结果。
-4. 生成的图片在对应插件目录下的images文件中，记得定时清理。
-<img width="420" alt="屏幕截图 2024-08-26 180221" src="https://github.com/user-attachments/assets/503ad7b5-b857-4803-bb3e-57500bb66032">
-
+4. 请遵守API提供商的使用条款和内容政策。
+5. 定期清理功能会自动删除指定天数前的图片，请注意备份重要图片。
+6. 使用 `绘clean_all` 命令时要小心，它会删除所有已生成的图片。
+![pintu-fulicat com-1724779353863](https://github.com/user-attachments/assets/01e06fef-3f0c-4d9c-95d0-06f1f7e843e0)
 
 ## 故障排除
 
