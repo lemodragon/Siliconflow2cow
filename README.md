@@ -38,6 +38,24 @@ Siliconflow2cow 是一个强大的 chatgpt-on-wechat 插件，允许用户通过
 - `drawing_prefixes`：触发绘图命令的前缀
 - `image_output_dir`：生成图像的保存目录
 
+## 译文模型切换（默认使用deepseek付费模型）
+<img width="692" alt="image" src="https://github.com/user-attachments/assets/318f14c6-1458-436c-90a9-8c98ff1a5784">
+可更改为下面免费模型（部分展示）
+``` 
+Qwen/Qwen2-7B-Instruct (32K, 免费)
+Qwen/Qwen2-1.5B-Instruct (32K, 免费)
+Qwen/Qwen1.5-7B-Chat (32K, 免费)
+THUDM/glm-4-9b-chat (32K, 免费)
+THUDM/chatglm3-6b (32K, 免费)
+01-ai/Yi-1.5-9B-Chat-16K (16K, 免费)
+01-ai/Yi-1.5-6B-Chat (4K, 免费)
+internlm/internlm2_5-7b-chat (32K, 免费)
+国际领先模型部分：
+google/gemma-2-9b-it (8K, 免费)
+meta-llama/Meta-Llama-3-8B-Instruct (8K, 免费)
+meta-llama/Meta-Llama-3.1-8B-Instruct (8K, 免费)
+mistralai/Mistral-7B-Instruct-v0.2 (32K，免费) 
+```
 ## 使用方法
 
 使用以下格式发送消息来生成图像：
