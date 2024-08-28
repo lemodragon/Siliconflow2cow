@@ -29,17 +29,19 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 ```json
 {
-  "auth_token": "您的API认证令牌",
+  "auth_token": "您的 API 认证令牌",
   "drawing_prefixes": ["绘", "draw"],
   "image_output_dir": "./plugins/siliconflow2cow/images",
-  "clean_interval": 3
+  "clean_interval": 3,
+  "clean_check_interval": 3600
 }
 ```
 
 - `auth_token`: 您的API认证令牌
 - `drawing_prefixes`: 触发绘图的命令前缀
 - `image_output_dir`: 生成图片的保存路径
-- `clean_interval`: 自动清理图片的间隔天数
+- `clean_interval`: 自动清理（默认3天）前的旧图片
+- `clean_check_interval`: 默认每小时检测一次图片是否需要清理（单位为s）
 
 ## 翻译模型选择
 
