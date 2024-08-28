@@ -4,7 +4,6 @@ import json
 import time
 import requests
 import base64
-import schedule
 from io import BytesIO
 from typing import List, Tuple
 from pathvalidate import sanitize_filename
@@ -28,7 +27,7 @@ ENHANCER_PROMPT = """As a Stable Diffusion Prompt expert, you will create prompt
     desire_priority=90,
     hidden=False,
     desc="A plugin for generating images using various models.",
-    version="2.5.5",
+    version="2.5.8",
     author="Assistant",
 )
 class Siliconflow2cow(Plugin):
@@ -45,21 +44,31 @@ class Siliconflow2cow(Plugin):
 
             self.drawing_prefixes = conf.get("drawing_prefixes", ["绘", "draw"])
             self.image_output_dir = conf.get("image_output_dir", "./plugins/siliconflow2cow/images")
-            self.clean_interval = conf.get("clean_interval", 3)  # 默认3天清理一次
+            self.clean_interval = float(conf.get("clean_interval", 3))  # 天数
+            self.clean_check_interval = int(conf.get("clean_check_interval", 3600))  # 秒数，默认1小时
 
             if not os.path.exists(self.image_output_dir):
                 os.makedirs(self.image_output_dir)
 
             self.handlers[Event.ON_HANDLE_CONTEXT] = self.on_handle_context
-            
+
             # 启动定时清理任务
-            self.schedule_thread = threading.Thread(target=self.run_schedule, daemon=True)
-            self.schedule_thread.start()
-            
-            logger.info("[Siliconflow2cow] 初始化成功")
+            self.schedule_next_run()
+
+            logger.info(f"[Siliconflow2cow] 初始化成功，清理间隔设置为 {self.clean_interval} 天，检查间隔为 {self.clean_check_interval} 秒")
         except Exception as e:
             logger.error(f"[Siliconflow2cow] 初始化失败，错误：{e}")
             raise e
+
+    def schedule_next_run(self):
+        """安排下一次运行"""
+        self.timer = threading.Timer(self.clean_check_interval, self.run_clean_task)
+        self.timer.start()
+
+    def run_clean_task(self):
+        """运行清理任务并安排下一次运行"""
+        self.clean_old_images()
+        self.schedule_next_run()
 
     def on_handle_context(self, e_context: EventContext):
         if e_context["context"].type != ContextType.TEXT:
@@ -392,37 +401,35 @@ class Siliconflow2cow(Plugin):
         """清理所有图片"""
         logger.info("[Siliconflow2cow] 开始清理所有图片")
         initial_count = len([name for name in os.listdir(self.image_output_dir) if os.path.isfile(os.path.join(self.image_output_dir, name))])
-        
+
         for filename in os.listdir(self.image_output_dir):
             file_path = os.path.join(self.image_output_dir, filename)
             if os.path.isfile(file_path):
                 os.remove(file_path)
                 logger.info(f"[Siliconflow2cow] 已删除图片: {file_path}")
-        
+
         final_count = len([name for name in os.listdir(self.image_output_dir) if os.path.isfile(os.path.join(self.image_output_dir, name))])
-        
+
         logger.info("[Siliconflow2cow] 清理所有图片完成")
         return Reply(ReplyType.TEXT, f"清理完成：已删除 {initial_count - final_count} 张图片，当前目录下还有 {final_count} 张图片。")
 
-    def run_schedule(self):
-        """运行定时任务"""
-        schedule.every().day.at("00:00").do(self.clean_old_images)
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
-
     def clean_old_images(self):
         """清理指定天数前的图片"""
-        logger.info("[Siliconflow2cow] 开始清理旧图片")
+        logger.info(f"[Siliconflow2cow] 开始检查是否需要清理旧图片，清理间隔：{self.clean_interval}天")
         now = datetime.now()
+        cleaned_count = 0
         for filename in os.listdir(self.image_output_dir):
             file_path = os.path.join(self.image_output_dir, filename)
             if os.path.isfile(file_path):
                 file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                 if now - file_time > timedelta(days=self.clean_interval):
                     os.remove(file_path)
+                    cleaned_count += 1
                     logger.info(f"[Siliconflow2cow] 已删除旧图片: {file_path}")
-        logger.info("[Siliconflow2cow] 清理旧图片完成")
+        if cleaned_count > 0:
+            logger.info(f"[Siliconflow2cow] 清理旧图片完成，共清理 {cleaned_count} 张图片")
+        else:
+            logger.info("[Siliconflow2cow] 没有需要清理的旧图片")
 
     def get_help_text(self, **kwargs):
         help_text = "插件使用指南：\n"
