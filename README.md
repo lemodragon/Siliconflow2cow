@@ -94,6 +94,7 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 ```
 绘小女孩,情趣内衣,18岁,蜡烛,昏暗 -m flux ---16:9
 ```
+**输入格式错误时，会使用默认模型flux默认尺寸1024x1024请求接口**
 <img width="1076" alt="image" src="https://github.com/user-attachments/assets/e31cc900-37e4-4737-ac6f-320a4558d6c5">
 
 ![图片](https://github.com/user-attachments/assets/5f30b4ea-41fd-496e-aae9-cb40b1d4f0ea)
