@@ -43,7 +43,7 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 - `auth_token`: 您的硅基流动 API 认证令牌
 - `enhancer_auth_token`：用于自定义提示词增强API的认证令牌。留空则使用 `auth_token` **非必填**
-- `chat_api_url`：用于自定义提示词增强的API URL "https://api.openai.com/v1/chat/completions"。留空则为默认 "https://api.siliconflow.cn/v1/chat/completions"。**非必填** 
+- `chat_api_url`：用于自定义提示词增强的API URL "https://api.openai.com/v1/chat/completions"。留空则为默认 "https://api.siliconflow.cn/v1/chat/completions"。 **非必填** 
 - `chat_model`：用于自定义提示词增强的模型。默认为 "deepseek-ai/DeepSeek-V2-Chat" **非必填** 
 - `enhancer_prompt`：用于自定义提示词增强的系统提示，留空走默认 **非必填** 
 - `drawing_prefixes`: 触发绘图的命令前缀
