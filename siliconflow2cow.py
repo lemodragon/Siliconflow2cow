@@ -18,17 +18,14 @@ from common.log import logger
 from plugins import *
 from config import conf
 
-CHAT_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-CHAT_MODEL = "deepseek-ai/DeepSeek-V2-Chat"
-ENHANCER_PROMPT = """As a Stable Diffusion Prompt expert, you will create prompts from keywords, often from databases like Danbooru. Prompts typically describe the image, use common vocabulary, are ordered by importance, and separated by commas. Avoid using "-" or ".", but spaces and natural language are acceptable. Avoid word repetition. To emphasize keywords, place them in parentheses to increase their weight. For example, "(flowers)" increases 'flowers' weight by 1.1x, while "(((flowers)))" increases it by 1.331x. Use "(flowers:1.5)" to increase 'flowers' weight by 1.5x. Only increase weights for important tags. Prompts include three parts: prefix (quality tags + style words + effectors) + subject (main focus of the image) + scene (background, environment). The prefix affects image quality. Tags like "masterpiece", "best quality" increase image detail. Style words like "illustration", "lensflare" define the image style. Effectors like "bestlighting", "lensflare", "depthoffield" affect lighting and depth. The subject is the main focus, like characters or scenes. Detailed subject description ensures rich, detailed images. Increase subject weight for clarity. For characters, describe facial, hair, body, clothing, pose features. The scene describes the environment. Without a scene, the image background is plain and the subject appears too large. Some subjects inherently include scenes (e.g., buildings, landscapes). Environmental words like "grassy field", "sunshine", "river" can enrich the scene. Your task is to design image generation prompts. Please follow these steps: 1. I will send you an image scene. You need to generate a detailed image description. 2. The image description must be in English, output as a Positive Prompt."""
 
 @plugins.register(
     name="Siliconflow2cow",
     desire_priority=90,
     hidden=False,
     desc="A plugin for generating images using various models.",
-    version="2.5.8",
-    author="Assistant",
+    version="2.6.0",
+    author="Lemodragon",
 )
 class Siliconflow2cow(Plugin):
     def __init__(self):
@@ -40,7 +37,19 @@ class Siliconflow2cow(Plugin):
 
             self.auth_token = conf.get("auth_token")
             if not self.auth_token:
-                raise Exception("在配置中未找到认证令牌。")
+                raise Exception("在配置中未找到主认证令牌。")
+            
+
+            self.enhancer_auth_token = conf.get("enhancer_auth_token") or self.auth_token
+            self.chat_api_url = conf.get("chat_api_url") or "https://api.siliconflow.cn/v1/chat/completions"
+            self.chat_model = conf.get("chat_model") or "deepseek-ai/DeepSeek-V2-Chat"
+            self.enhancer_prompt = conf.get("enhancer_prompt") or """As a Stable Diffusion Prompt expert, you will create prompts from keywords, often from databases like Danbooru. Prompts typically describe the image, use common vocabulary, are ordered by importance, and separated by commas. Avoid using "-" or ".", but spaces and natural language are acceptable. Avoid word repetition. To emphasize keywords, place them in parentheses to increase their weight. For example, "(flowers)" increases 'flowers' weight by 1.1x, while "(((flowers)))" increases it by 1.331x. Use "(flowers:1.5)" to increase 'flowers' weight by 1.5x. Only increase weights for important tags. Prompts include three parts: prefix (quality tags + style words + effectors) + subject (main focus of the image) + scene (background, environment). The prefix affects image quality. Tags like "masterpiece", "best quality" increase image detail. Style words like "illustration", "lensflare" define the image style. Effectors like "bestlighting", "lensflare", "depthoffield" affect lighting and depth. The subject is the main focus, like characters or scenes. Detailed subject description ensures rich, detailed images. Increase subject weight for clarity. For characters, describe facial, hair, body, clothing, pose features. The scene describes the environment. Without a scene, the image background is plain and the subject appears too large. Some subjects inherently include scenes (e.g., buildings, landscapes). Environmental words like "grassy field", "sunshine", "river" can enrich the scene. Your task is to design image generation prompts. Please follow these steps: 1. I will send you an image scene. You need to generate a detailed image description. 2. The image description must be in English, output as a Positive Prompt."""  
+            
+
+            if self.enhancer_auth_token == self.auth_token:
+                logger.info("[Siliconflow2cow] 增强器使用默认的认证令牌")
+            else:
+                logger.info("[Siliconflow2cow] 使用自定义的增强器认证令牌")
 
             self.drawing_prefixes = conf.get("drawing_prefixes", ["绘", "draw"])
             self.image_output_dir = conf.get("image_output_dir", "./plugins/siliconflow2cow/images")
@@ -131,16 +140,27 @@ class Siliconflow2cow(Plugin):
     def enhance_prompt(self, prompt: str) -> str:
         try:
             logger.debug(f"[Siliconflow2cow] 正在增强提示词: {prompt}")
+
+            if not self.chat_api_url or not self.chat_model:
+                logger.warning("[Siliconflow2cow] chat_api_url 或 chat_model 未设置，跳过提示词增强")
+                return prompt
+            
+            auth_token = self.enhancer_auth_token or self.auth_token
+            
+            if not self.enhancer_prompt:
+                logger.info("[Siliconflow2cow] 增强提示词为空，跳过提示词增强")
+                return prompt
+            
             response = requests.post(
-                CHAT_API_URL,
+                self.chat_api_url,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.auth_token}"
+                    "Authorization": f"Bearer {auth_token}"
                 },
                 json={
-                    "model": CHAT_MODEL,
+                    "model": self.chat_model,
                     "messages": [
-                        {"role": "system", "content": ENHANCER_PROMPT},
+                        {"role": "system", "content": self.enhancer_prompt},
                         {"role": "user", "content": prompt}
                     ]
                 }
@@ -179,7 +199,7 @@ class Siliconflow2cow(Plugin):
             'Content-Type': 'application/json'
         }
 
-        if model_key == "flux":
+        if model_key == "flux.s":
             json_body.update({
                 "num_inference_steps": 30,
                 "guidance_scale": 7.0
@@ -210,6 +230,14 @@ class Siliconflow2cow(Plugin):
                 "num_inference_steps": 4,
                 "guidance_scale": 1.0
             })
+        elif model_key == "flux.d":
+            json_body = {
+                "model": "black-forest-labs/FLUX.1-dev",
+                "prompt": prompt,
+                "image_size": image_size,
+                "num_inference_steps": 25,
+                "seed": int(time.time()) 
+            }
         else:
             json_body.update({
                 "num_inference_steps": 50,
@@ -222,7 +250,10 @@ class Siliconflow2cow(Plugin):
             response.raise_for_status()
             json_response = response.json()
             logger.debug(f"[Siliconflow2cow] API响应: {json_response}")
-            return json_response['images'][0]['url']
+            if model_key == "flux.d":
+                return json_response['images'][0]['url']
+            else:
+                return json_response['images'][0]['url']
         except requests.exceptions.RequestException as e:
             logger.error(f"[Siliconflow2cow] API请求失败: {e}")
             if hasattr(e, 'response') and e.response is not None:
@@ -231,7 +262,7 @@ class Siliconflow2cow(Plugin):
                     logger.error(f"[Siliconflow2cow] API错误信息: {error_message}")
                 logger.error(f"[Siliconflow2cow] API响应内容: {e.response.text}")
             raise Exception(f"API请求失败: {str(e)}")
-
+    
     def generate_image_by_img(self, prompt: str, image_url: str, model_key: str, image_size: str) -> str:
         url = self.get_img_url_for_model(model_key)
         logger.debug(f"[Siliconflow2cow] 使用图生图模型URL: {url}")
@@ -303,7 +334,7 @@ class Siliconflow2cow(Plugin):
 
     def extract_model_key(self, prompt: str) -> str:
         match = re.search(r'-m ?(\S+)', prompt)
-        model_key = match.group(1).strip() if match else "flux"
+        model_key = match.group(1).strip() if match else "flux.s"
         logger.debug(f"[Siliconflow2cow] 提取的模型键: {model_key}")
         return model_key
 
@@ -345,7 +376,8 @@ class Siliconflow2cow(Plugin):
 
     def get_url_for_model(self, model_key: str) -> str:
         URL_MAP = {
-            "flux": "https://api.siliconflow.cn/v1/black-forest-labs/FLUX.1-schnell/text-to-image",
+            "flux.d": "https://api.siliconflow.cn/v1/image/generations",
+            "flux.s": "https://api.siliconflow.cn/v1/black-forest-labs/FLUX.1-schnell/text-to-image",
             "sd3": "https://api.siliconflow.cn/v1/stabilityai/stable-diffusion-3-medium/text-to-image",
             "sdxl": "https://api.siliconflow.cn/v1/stabilityai/stable-diffusion-xl-base-1.0/text-to-image",
             "sd2": "https://api.siliconflow.cn/v1/stabilityai/stable-diffusion-2-1/text-to-image",
@@ -353,7 +385,7 @@ class Siliconflow2cow(Plugin):
             "sdxlt": "https://api.siliconflow.cn/v1/stabilityai/sdxl-turbo/text-to-image",
             "sdxll": "https://api.siliconflow.cn/v1/ByteDance/SDXL-Lightning/text-to-image"
         }
-        url = URL_MAP.get(model_key, URL_MAP["flux"])
+        url = URL_MAP.get(model_key, URL_MAP["flux.s"])
         logger.debug(f"[Siliconflow2cow] 选择的模型URL: {url}")
         return url
 
@@ -438,10 +470,10 @@ class Siliconflow2cow(Plugin):
         help_text += "3. 使用 '---' 后跟比例来指定图片尺寸，例如：---16:9\n"
         help_text += "4. 如果要进行图生图，直接在提示词中包含图片URL\n"
         help_text += f"5. 输入 '{self.drawing_prefixes[0]}clean_all' 来清理所有图片（警告：这将删除所有已生成的图片）\n"
-        help_text += f"示例：{self.drawing_prefixes[0]} 一只可爱的小猫 -m flux ---16:9\n"
+        help_text += f"示例：{self.drawing_prefixes[0]} 一只可爱的小猫 -m flux.s ---16:9\n"
         help_text += "注意：您的提示词将会被AI自动优化以产生更好的结果。\n"
         help_text += "注意：各模型的参数已经过调整以提高图像质量。\n"
-        help_text += f"可用的模型：flux, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
+        help_text += f"可用的模型：flux.d, flux.s, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
         help_text += f"可用的尺寸比例：{', '.join(self.RATIO_MAP.keys())}\n"
         help_text += f"图片将每{self.clean_interval}天自动清理一次。\n"
         return help_text

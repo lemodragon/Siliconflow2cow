@@ -1,7 +1,11 @@
 {
   "auth_token": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "enhancer_auth_token": "",
+  "chat_api_url": "", 
+  "chat_model": "",
+  "enhancer_prompt": "",
   "drawing_prefixes": ["绘", "draw"],
   "image_output_dir": "./plugins/siliconflow2cow/images",
   "clean_interval": 3,
-  "clean_check_interval": 3600
+  "clean_check_interval": 28800
 }
