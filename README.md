@@ -6,7 +6,7 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 ## 主要特性
 
-- 支持多种图像生成模型（flux, sd3, sdxl, sd2, sdt, sdxlt, sdxll）
+- 支持多种图像生成模型（flux.d, flux.s, sd3, sdxl, sd2, sdt, sdxlt, sdxll）
 - 可自定义图像尺寸和比例
 - 支持文生图和图生图功能
 - 自动优化用户输入的提示词
@@ -29,7 +29,11 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 
 ```json
 {
-  "auth_token": "您的 API 认证令牌",
+  "auth_token": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "enhancer_auth_token": "",
+  "chat_api_url": "", 
+  "chat_model": "",
+  "enhancer_prompt": "",
   "drawing_prefixes": ["绘", "draw"],
   "image_output_dir": "./plugins/siliconflow2cow/images",
   "clean_interval": 3,
@@ -37,7 +41,11 @@ Siliconflow2cow 是一款强大的 chatgpt-on-wechat 插件，让用户能够通
 }
 ```
 
-- `auth_token`: 您的API认证令牌
+- `auth_token`: 您的硅基流动 API 认证令牌，**必填项**
+- `enhancer_auth_token`：用于自定义提示词增强API的认证令牌。留空则使用 `auth_token` **非必填**
+- `chat_api_url`：用于自定义提示词增强的API URL。留空则为默认 "https://api.siliconflow.cn/v1/chat/completions"。**非必填** 自定义URL模式为："https://api.openai.com/v1/chat/completions"
+- `chat_model`：用于自定义提示词增强的模型。默认为 "deepseek-ai/DeepSeek-V2-Chat"
+- `enhancer_prompt`：用于自定义提示词增强的系统提示，留空走默认
 - `drawing_prefixes`: 触发绘图的命令前缀
 - `image_output_dir`: 生成图片的保存路径
 - `clean_interval`: 自动清理（默认3天）前的旧图片
@@ -92,16 +100,18 @@ mistralai/Mistral-7B-Instruct-v0.2 (32K，免费)
 
 示例：
 ```
-绘小女孩,情趣内衣,18岁,蜡烛,昏暗 -m flux ---16:9
+绘RPG角色绘画风格。年轻的人类女性，有着清晰可见的骆驼耳朵，高高地举在头上。她有蓝色的眼睛。粉红色的头发扎成两条辫子。她脖子上戴着一个旧的奖章，上面画着一朵花。她的头上戴着一个简单的花冠。她穿着一件带有花卉图案的浅色波西米亚风格长裙-m flux.d ---16:9
 ```
-**输入格式错误时，会使用默认模型flux默认尺寸1024x1024请求接口**
-<img width="1076" alt="image" src="https://github.com/user-attachments/assets/e31cc900-37e4-4737-ac6f-320a4558d6c5">
+**输入格式错误时(模型不存在、尺寸不存在时...)，会使用默认模型flux.s默认尺寸1024x1024请求接口**
+<img width="1076" alt="image" src="https://github.com/user-attachments/assets/da661e24-8db1-4fdc-b24a-ce945a08b2c3">
 
-![图片](https://github.com/user-attachments/assets/5f30b4ea-41fd-496e-aae9-cb40b1d4f0ea)
+![微信图片_20240920192537](https://github.com/user-attachments/assets/0f105708-2508-44ce-97b1-82037ea355a2)
+
 
 ### 支持的模型
 
-- flux: FLUX.1-schnell
+- flux.d: FLUX.1-dev
+- flux.s: FLUX.1-schnell
 - sd3: Stable Diffusion 3 Medium
 - sdxl: Stable Diffusion XL Base 1.0
 - sd2: Stable Diffusion 2.1
