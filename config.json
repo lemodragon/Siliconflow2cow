@@ -7,5 +7,5 @@
   "drawing_prefixes": ["绘", "draw"],
   "image_output_dir": "./plugins/siliconflow2cow/images",
   "clean_interval": 3,
-  "clean_check_interval": 28800
+  "clean_check_interval": 3600
 }
