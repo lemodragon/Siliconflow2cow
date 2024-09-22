@@ -24,7 +24,7 @@ from config import conf
     desire_priority=90,
     hidden=False,
     desc="A plugin for generating images using various models.",
-    version="2.6.0",
+    version="2.6.1",
     author="Lemodragon",
 )
 class Siliconflow2cow(Plugin):
@@ -463,8 +463,16 @@ class Siliconflow2cow(Plugin):
         else:
             logger.info("[Siliconflow2cow] 没有需要清理的旧图片")
 
-    def get_help_text(self, **kwargs):
-        help_text = "插件使用指南：\n"
+    def get_help_text(self, verbose=False, **kwargs):
+        short_help = "简略指南：\n"
+        short_help += f"1. 使用 {', '.join(self.drawing_prefixes)} 命令前缀\n"
+        short_help += "2. 请求格式：[前缀] [提示词] -m [模型] ---[尺寸]\n"
+        short_help += "3. 模型列表：flux.d, flux.s, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
+        short_help += f"4. 尺寸列表：{', '.join(self.RATIO_MAP.keys())}\n"
+        if not verbose:
+            return short_help
+
+        help_text = "详细指南：\n"
         help_text += f"1. 使用 {', '.join(self.drawing_prefixes)} 作为命令前缀\n"
         help_text += "2. 在提示词后面添加 '-m' 来选择模型，例如：-m sdxl\n"
         help_text += "3. 使用 '---' 后跟比例来指定图片尺寸，例如：---16:9\n"
@@ -473,7 +481,7 @@ class Siliconflow2cow(Plugin):
         help_text += f"示例：{self.drawing_prefixes[0]} 一只可爱的小猫 -m flux.s ---16:9\n"
         help_text += "注意：您的提示词将会被AI自动优化以产生更好的结果。\n"
         help_text += "注意：各模型的参数已经过调整以提高图像质量。\n"
-        help_text += f"可用的模型：flux.d, flux.s, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
+        help_text += "可用的模型：flux.d, flux.s, sd3, sdxl, sd2, sdt, sdxlt, sdxll\n"
         help_text += f"可用的尺寸比例：{', '.join(self.RATIO_MAP.keys())}\n"
         help_text += f"图片将每{self.clean_interval}天自动清理一次。\n"
         return help_text
